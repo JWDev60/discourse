@@ -1,6 +1,8 @@
 import EmberObject, { computed } from "@ember/object";
 import { mapBy } from "@ember/object/computed";
+import { ajax } from "discourse/lib/ajax";
 import Category from "discourse/models/category";
+import Site from "discourse/models/site";
 import { makeArray } from "discourse-common/lib/helpers";
 import CategoryRow from "select-kit/components/category-row";
 import MultiSelectComponent from "select-kit/components/multi-select";
@@ -101,11 +103,19 @@ export default MultiSelectComponent.extend({
     return categories;
   },
 
-  select(value, item) {
-    if (item.categories) {
+  async select(value, item) {
+    if (item.id.endsWith("+subcategories")) {
+      const response = await ajax(
+        `/categories.json?parent_category_id=${item.id}`
+      );
+
+      const categories = response.category_list.map((category) =>
+        Site.current().updateCategory(category)
+      );
+
       this.selectKit.change(
-        makeArray(this.value).concat(item.categories.mapBy("id")),
-        makeArray(this.selectedContent).concat(item.categories)
+        makeArray(this.value).concat(categories.mapBy("id")),
+        makeArray(this.selectedContent).concat(categories)
       );
     } else {
       this._super(value, item);
